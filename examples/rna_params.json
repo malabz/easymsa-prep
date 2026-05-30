@@ -1,0 +1,8 @@
+{
+  "mode": "audit",
+  "strictness": "normal",
+  "sequence_type": "rna",
+  "rules": {
+    "u_to_t": true
+  }
+}

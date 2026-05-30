@@ -1,0 +1,12 @@
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.log
+check_result/
+preprocess_result/
+examples/output/

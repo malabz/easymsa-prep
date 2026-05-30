@@ -1,0 +1,16 @@
+>sample_alpha
+ACGTACGTACGTACGTACGTACGT
+>sample_lower_u_gap
+acgu-acgu-acgu-acgu
+>sample_illegal
+ACGTXXYYZZACGT
+>sample_high_n
+NNNNNNNNNNACGTNNNNNNNNNN
+>sample_duplicate_id
+ACGTACGTACGTACGTACGTACGT
+>sample_duplicate_id
+ACGTACGTACGTACGTACGTACGT
+>sample_reverse_candidate
+ACGTACGTACGTACGTACGTACGT
+>sample_low_complexity
+AAAAAAAAAAAAAAAAAAAAAAAA

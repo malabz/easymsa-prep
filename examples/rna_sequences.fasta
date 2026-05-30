@@ -1,0 +1,8 @@
+>rna_alpha
+ACGUACGUACGUACGU
+>rna_lower_gap
+acgu-acgu-acgu
+>rna_illegal
+ACGUZZACGU
+>rna_duplicate
+ACGUACGUACGUACGU
