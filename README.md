@@ -111,6 +111,14 @@ result/
 Backend workers should pass only `clean.fasta` to the MSA stage and treat
 `result.json` as the machine-readable source of truth.
 
+Successful DNA/RNA runs also expose a public `dataset_features` block in
+`result.json`. It is computed from the final retained representatives and
+contains length, GC, ambiguous-base, 5-mer, and uniformly sampled Jaccard
+statistics. Mash remains an adaptive-selector concern and is not run by the
+preprocessor. The feature profile is versioned as
+`uniform-jaccard-2000-v1`; protein inputs report the feature block as
+`unsupported`.
+
 ## Common Options
 
 ```bash
@@ -202,4 +210,5 @@ Source files are intentionally flat under `src/`:
 - `sequence_utils.cpp`, `common.cpp`: shared helpers
 
 Vendored dependencies: `CLI11`, `miniz`, `doctest`, `kseq.h`, `json.hpp`,
+- `dataset_features.cpp`: deterministic non-Mash dataset statistics
 `xxhash`. System dependencies: OpenMP, zlib, liblzma.

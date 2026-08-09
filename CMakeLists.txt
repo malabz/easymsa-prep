@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(easymsa-prep VERSION 0.1.0 LANGUAGES C CXX)
+project(easymsa-prep VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,6 +20,7 @@ set(INSTALL_PROJECT OFF CACHE BOOL "" FORCE)
 add_subdirectory(extern/miniz)
 
 set(EASYMSA_PREP_MODULES
+  src/dataset_features.cpp
   src/cli.cpp
   src/config.cpp
   src/common.cpp
@@ -81,4 +82,10 @@ if(BUILD_TESTING)
   )
   target_link_libraries(easymsa_prep_tests PRIVATE easymsa_prep_core)
   add_test(NAME easymsa_prep_tests COMMAND easymsa_prep_tests)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  add_test(
+    NAME easymsa_prep_dataset_features_reference
+    COMMAND ${Python3_EXECUTABLE}
+            ${PROJECT_SOURCE_DIR}/tests/test_dataset_features_reference.py
+            $<TARGET_FILE:easymsa-prep>)
 endif()

@@ -28,6 +28,57 @@ json command_line_to_json(const std::vector<std::string>& command_line) {
   return out;
 }
 
+json dataset_features_to_json(const DatasetFeatures& features) {
+  json values = json::object();
+  if (features.status == "complete") {
+    const auto& item = features.values;
+    values = {
+        {"n_sequences", item.n_sequences},
+        {"total_bases", item.total_bases},
+        {"length_min", item.length_min},
+        {"length_max", item.length_max},
+        {"length_mean", item.length_mean},
+        {"length_median", item.length_median},
+        {"length_std", item.length_std},
+        {"length_iqr", item.length_iqr},
+        {"gc_mean", item.gc_mean},
+        {"gc_std", item.gc_std},
+        {"ambiguous_mean", item.ambiguous_mean},
+        {"kmer_k", item.kmer_k},
+        {"kmer_sample_size", item.kmer_sample_size},
+        {"kmer_sample_fraction", item.kmer_sample_fraction},
+        {"kmer_distinct", item.kmer_distinct},
+        {"kmer_diversity", item.kmer_diversity},
+        {"similarity_mean", item.similarity_mean},
+        {"similarity_median", item.similarity_median},
+        {"similarity_std", item.similarity_std},
+        {"similarity_pair_count", item.similarity_pair_count},
+        {"low_memory_mode", item.low_memory_mode ? 1 : 0},
+    };
+  }
+
+  json output = {
+      {"schema", features.schema},
+      {"status", features.status},
+      {"profile", features.profile},
+      {"source", features.source},
+      {"parameters",
+       {
+           {"alphabet", "ACGT"},
+           {"kmer_k", 5},
+           {"similarity_sampling", "uniform_without_replacement"},
+           {"similarity_max_pairs", 2000},
+           {"seed", 42},
+           {"standard_deviation", "sample"},
+       }},
+      {"values", values},
+      {"timing_ms", features.runtime.count()},
+  };
+  if (!features.error_code.empty()) output["error_code"] = features.error_code;
+  if (!features.error_message.empty()) output["error_message"] = features.error_message;
+  return output;
+}
+
 json success_result_json(const RunResult& result) {
   json input_files = json::array();
   std::size_t fasta_file_count = 0;
@@ -82,6 +133,7 @@ json success_result_json(const RunResult& result) {
            {"collapsed_duplicate_count", result.summary.collapsed_duplicate_count},
        }},
       {"input_files", input_files},
+      {"dataset_features", dataset_features_to_json(result.dataset_features)},
       {"qc_counts", map_to_json(result.qc_counts)},
       {"cleaning_counts", map_to_json(result.cleaning_counts)},
       {"removal_counts", map_to_json(result.removal_counts)},

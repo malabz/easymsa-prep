@@ -243,6 +243,8 @@ RunResult run_pipeline(const CliOptions& options, const Config& config) {
     result.summary.clean_total_bases += item.clean_sequence.size();
   }
 
+  result.dataset_features =
+      compute_dataset_features(result.records, config.sequence_type);
   result.runtime = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - start);
   write_success_outputs(result);

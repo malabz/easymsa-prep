@@ -3,6 +3,7 @@
 
 #include "easymsa_prep.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -126,8 +127,74 @@ TEST_CASE("pipeline writes simplified outputs and is deterministic") {
   auto result8 = easymsa_prep::run_pipeline(eight, config);
   CHECK(result8.success);
   CHECK(read_text(one.output_dir / "clean.fasta") == read_text(eight.output_dir / "clean.fasta"));
+  const auto one_json = easymsa_prep::json::parse(read_text(one.output_dir / "result.json"));
+  const auto eight_json = easymsa_prep::json::parse(read_text(eight.output_dir / "result.json"));
+  CHECK(one_json.at("dataset_features") == eight_json.at("dataset_features"));
+  CHECK(one_json.at("dataset_features").at("status") == "complete");
+  CHECK(one_json.at("dataset_features").at("values").at("n_sequences") == 3);
 
   fs::remove_all(root);
+}
+
+TEST_CASE("dataset features use final retained records and stable bitsets") {
+  using easymsa_prep::RecordResult;
+  std::vector<RecordResult> records(5);
+  records[0].clean_sequence = "AAAAA";
+  records[1].clean_sequence = "CCCCC";
+  records[2].clean_sequence = "NNNNN";
+  records[3].clean_sequence = "GGGGG";
+  records[3].removed = true;
+  records[4].clean_sequence = "TTTTT";
+  records[4].representative = false;
+
+  const auto features =
+      easymsa_prep::compute_dataset_features(records, easymsa_prep::SequenceType::dna);
+  CHECK(features.status == "complete");
+  const auto& values = features.values;
+  CHECK(values.n_sequences == 3);
+  CHECK(values.total_bases == 15);
+  CHECK(values.length_mean == doctest::Approx(5.0));
+  CHECK(values.length_median == doctest::Approx(5.0));
+  CHECK(values.length_std == doctest::Approx(0.0));
+  CHECK(values.gc_mean == doctest::Approx(1.0 / 3.0));
+  CHECK(values.gc_std == doctest::Approx(std::sqrt(1.0 / 3.0)));
+  CHECK(values.ambiguous_mean == doctest::Approx(1.0 / 3.0));
+  CHECK(values.kmer_distinct == 2);
+  CHECK(values.kmer_diversity == doctest::Approx(1.0));
+  CHECK(values.similarity_pair_count == 3);
+  CHECK(values.similarity_mean == doctest::Approx(0.0));
+  CHECK(values.similarity_std == doctest::Approx(0.0));
+
+  records.resize(2);
+  records[0].clean_sequence = "NNNNN";
+  records[1].clean_sequence = "RRRRR";
+  const auto empty_kmers =
+      easymsa_prep::compute_dataset_features(records, easymsa_prep::SequenceType::rna);
+  CHECK(empty_kmers.status == "complete");
+  CHECK(empty_kmers.values.kmer_distinct == 0);
+  CHECK(empty_kmers.values.kmer_diversity == doctest::Approx(0.0));
+  CHECK(empty_kmers.values.similarity_mean == doctest::Approx(1.0));
+
+  const auto protein =
+      easymsa_prep::compute_dataset_features(records, easymsa_prep::SequenceType::protein);
+  CHECK(protein.status == "unsupported");
+}
+
+TEST_CASE("dataset features use bounded kmer memory above the training domain") {
+  std::vector<easymsa_prep::RecordResult> records(10001);
+  const std::array<std::string, 4> sequences = {
+      "AAAAACGT", "CCCCACGT", "GGGGACGT", "TTTTACGT"};
+  for (std::size_t index = 0; index < records.size(); ++index) {
+    records[index].clean_sequence = sequences[index % sequences.size()];
+  }
+
+  const auto features =
+      easymsa_prep::compute_dataset_features(records, easymsa_prep::SequenceType::dna);
+  CHECK(features.status == "complete");
+  CHECK(features.values.n_sequences == 10001);
+  CHECK(features.values.low_memory_mode);
+  CHECK(features.values.kmer_sample_size == 2000);
+  CHECK(features.values.similarity_pair_count == 2000);
 }
 
 TEST_CASE("invalid FASTA surfaces as PrepError") {

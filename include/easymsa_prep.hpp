@@ -2,6 +2,7 @@
 
 #include "json.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -151,6 +152,41 @@ struct SummaryCounts {
   std::size_t collapsed_duplicate_count = 0;
 };
 
+struct DatasetFeatureValues {
+  std::size_t n_sequences = 0;
+  std::uint64_t total_bases = 0;
+  double length_min = 0.0;
+  double length_max = 0.0;
+  double length_mean = 0.0;
+  double length_median = 0.0;
+  double length_std = 0.0;
+  double length_iqr = 0.0;
+  double gc_mean = 0.0;
+  double gc_std = 0.0;
+  double ambiguous_mean = 0.0;
+  std::size_t kmer_k = 5;
+  std::size_t kmer_sample_size = 0;
+  double kmer_sample_fraction = 0.0;
+  std::size_t kmer_distinct = 0;
+  double kmer_diversity = 0.0;
+  double similarity_mean = 1.0;
+  double similarity_median = 1.0;
+  double similarity_std = 0.0;
+  std::size_t similarity_pair_count = 0;
+  bool low_memory_mode = false;
+};
+
+struct DatasetFeatures {
+  std::string schema = "easymsa-dataset-features/v1";
+  std::string status = "not_computed";
+  std::string profile = "uniform-jaccard-2000-v1";
+  std::string source = "retained_representatives";
+  std::string error_code;
+  std::string error_message;
+  DatasetFeatureValues values;
+  std::chrono::milliseconds runtime{0};
+};
+
 struct RunResult {
   bool success = true;
   int exit_code = 0;
@@ -162,6 +198,7 @@ struct RunResult {
   CliOptions options;
   InputBundle input;
   ReferenceInfo reference;
+  DatasetFeatures dataset_features;
   SummaryCounts summary;
   std::vector<RecordResult> records;
   std::map<std::string, std::size_t> qc_counts;
@@ -185,6 +222,8 @@ class PrepError : public std::runtime_error {
 
 CliOptions parse_cli(int argc, char** argv);
 Config load_config(const CliOptions& options);
+DatasetFeatures compute_dataset_features(const std::vector<RecordResult>& records,
+                                         SequenceType sequence_type);
 RunResult run_pipeline(const CliOptions& options, const Config& config);
 void write_success_outputs(const RunResult& result);
 void write_error_outputs(const CliOptions& options,
