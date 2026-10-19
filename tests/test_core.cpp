@@ -40,6 +40,26 @@ easymsa_prep::CliOptions options_for(const fs::path& input, const fs::path& outp
 
 }  // namespace
 
+TEST_CASE("FASTA descriptions preserve IDs and replacements avoid natural IDs") {
+  const auto root = fs::temp_directory_path() / "easymsa-title-map-test";
+  fs::remove_all(root);
+  write_text(root / "input.fa", ">sample first description\nACGTACGT\n>sample\tsecond description\nACGTACGA\n>seq_000001 original name\nACGTACGG\n>unique 中文描述\nACGTACGC\n");
+  const auto options = options_for(root / "input.fa", root / "out");
+  const auto result = easymsa_prep::run_pipeline(options, easymsa_prep::default_config_for_mode("audit", "normal"));
+  REQUIRE(result.records.size() == 4);
+  CHECK(result.records[0].original_id == "sample");
+  CHECK(result.records[0].description == "first description");
+  CHECK(result.records[0].output_id != "seq_000001");
+  CHECK(result.records[1].output_id != result.records[0].output_id);
+  CHECK(result.records[1].original_header == "sample\tsecond description");
+  CHECK(result.records[2].output_id == "seq_000001");
+  CHECK(result.records[3].output_id == "unique");
+  easymsa_prep::write_success_outputs(result);
+  CHECK(read_text(root / "out" / "sequence_map.jsonl").find("original_header") != std::string::npos);
+  CHECK(read_text(root / "out" / "sequence_map.tsv").find("second description") != std::string::npos);
+  fs::remove_all(root);
+}
+
 TEST_CASE("mode and strictness defaults") {
   CHECK(easymsa_prep::normalize_mode_name("audit") == "audit");
   CHECK(easymsa_prep::normalize_mode_name("filter") == "filter");

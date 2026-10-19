@@ -86,6 +86,8 @@ struct Record {
   std::size_t record_index = 0;
   std::string internal_id;
   std::string original_id;
+  std::string original_header;
+  std::string description;
   fs::path source_file;
   std::string sequence;
 };
@@ -122,6 +124,8 @@ struct RecordResult {
   std::size_t record_index = 0;
   std::string internal_id;
   std::string original_id;
+  std::string original_header;
+  std::string description;
   std::string output_id;
   fs::path source_file;
   std::size_t original_length = 0;

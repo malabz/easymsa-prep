@@ -147,6 +147,8 @@ json success_result_json(const RunResult& result) {
       {"outputs",
        {
            {"clean_fasta", result.config.output.clean_fasta_name},
+           {"sequence_map", "sequence_map.jsonl"},
+           {"sequence_map_tsv", "sequence_map.tsv"},
            {"result_json", "result.json"},
            {"summary_txt", "summary.txt"},
        }},
@@ -268,6 +270,35 @@ void write_success_outputs(const RunResult& result) {
         out << '>' << record.output_id << '\n'
             << wrap_fasta(record.clean_sequence, result.config.output.wrap_width);
       }
+    }
+  }
+  {
+    auto machine = open_output(result.options.output_dir / "sequence_map.jsonl");
+    auto table = open_output(result.options.output_dir / "sequence_map.tsv");
+    table << "input_index\toriginal_id\toriginal_header\toutput_id\tstatus\trepresentative_id\treasons\n";
+    auto quote = [](const std::string& value) {
+      std::string escaped = "\"";
+      for (char c : value) { if (c == '\"') escaped += '\"'; escaped += c; }
+      return escaped + "\"";
+    };
+    std::map<std::string, std::string> output_ids;
+    for (const auto& record : result.records) output_ids[record.internal_id] = record.output_id;
+    for (const auto& record : result.records) {
+      const std::string status = record.removed ? "removed" : (record.representative ? "retained" : "collapsed");
+      std::string representative;
+      if (!record.representative && !record.removed) {
+        representative = output_ids.at(record.representative_id);
+      }
+      auto reasons = record.remove_reasons;
+      if (record.renamed) reasons.push_back(record.duplicate_id ? "duplicate_id" : "invalid_id");
+      if (status == "collapsed") reasons.push_back("identical_sequence");
+      const json entry = {{"input_index", record.record_index + 1}, {"original_id", record.original_id},
+          {"original_header", record.original_header}, {"description", record.description},
+          {"output_id", record.output_id}, {"status", status}, {"representative_id", representative}, {"reasons", reasons}};
+      machine << entry.dump() << '\n';
+      table << record.record_index + 1 << '\t' << quote(record.original_id) << '\t' << quote(record.original_header)
+            << '\t' << quote(record.output_id) << '\t' << status << '\t' << quote(representative)
+            << '\t' << quote(join(reasons, ";")) << '\n';
     }
   }
   {

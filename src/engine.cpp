@@ -91,6 +91,8 @@ RunResult run_pipeline(const CliOptions& options, const Config& config) {
     item.record_index = record.record_index;
     item.internal_id = record.internal_id;
     item.original_id = record.original_id;
+    item.original_header = record.original_header;
+    item.description = record.description;
     item.output_id = record.original_id;
     item.source_file = record.source_file;
     item.original_length = record.sequence.size();
@@ -124,10 +126,17 @@ RunResult run_pipeline(const CliOptions& options, const Config& config) {
     result.records[static_cast<std::size_t>(i)] = std::move(item);
   }
 
+  std::unordered_set<std::string> reserved_ids;
+  for (const auto& item : result.records) reserved_ids.insert(item.original_id);
   for (auto& item : result.records) {
     item.duplicate_id = id_counts[item.original_id] > 1;
     if (item.invalid_id || item.duplicate_id) {
       item.output_id = item.internal_id;
+      std::size_t suffix = 1;
+      while (reserved_ids.count(item.output_id)) {
+        item.output_id = item.internal_id + "_" + std::to_string(suffix++);
+      }
+      reserved_ids.insert(item.output_id);
       item.renamed = true;
     }
   }

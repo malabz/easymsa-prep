@@ -440,6 +440,36 @@ std::vector<fs::path> discover_fasta_paths(const fs::path& input,
   return paths;
 }
 
+// kseq separates names from comments and discards their delimiter. Retain
+// complete FASTA headers separately so tabs/spaces survive result publication.
+std::vector<std::string> read_original_headers(const fs::path& path) {
+  gzFile input = gzopen(path.string().c_str(), "rb");
+  if (!input) throw PrepError("IO_ERROR", "input", "failed to read FASTA headers");
+  std::vector<std::string> headers;
+  std::array<char, 8192> buffer{};
+  std::string header;
+  bool start = true, capture = false, first = true;
+  while (gzgets(input, buffer.data(), static_cast<int>(buffer.size()))) {
+    std::string part(buffer.data());
+    if (first && part.starts_with("\xef\xbb\xbf")) part.erase(0, 3);
+    first = false;
+    if (start) { capture = !part.empty() && part[0] == '>'; header.clear(); }
+    if (capture) header += part;
+    start = !part.empty() && part.back() == '\n';
+    if (start && capture) {
+      while (!header.empty() && (header.back() == '\n' || header.back() == '\r')) header.pop_back();
+      headers.push_back(header.substr(1));
+    }
+  }
+  if (!start && capture) {
+    if (!header.empty() && header.back() == '\r') header.pop_back();
+    headers.push_back(header.substr(1));
+  }
+  int error = Z_OK; gzerror(input, &error); gzclose(input);
+  if (error != Z_OK && error != Z_STREAM_END) throw PrepError("IO_ERROR", "input", "failed to read FASTA headers");
+  return headers;
+}
+
 std::vector<Record> read_fasta_records(const std::vector<fs::path>& files,
                                        InputBundle& bundle,
                                        const Config& config) {
@@ -448,6 +478,7 @@ std::vector<Record> read_fasta_records(const std::vector<fs::path>& files,
   std::uint64_t total_bases = 0;
 
   for (const auto& path : files) {
+    const auto headers = read_original_headers(path);
     gzFile fp = gzopen(path.string().c_str(), "rb");
     if (!fp) throw PrepError("INVALID_FASTA", "fasta_validation", "failed to open FASTA: " + path.string());
     kseq_t* seq = kseq_init(fp);
@@ -459,10 +490,15 @@ std::vector<Record> read_fasta_records(const std::vector<fs::path>& files,
       record.record_index = next_index++;
       record.internal_id = format_internal_id(record.record_index + 1);
       record.original_id = seq->name.s ? seq->name.s : "";
-      if (seq->comment.l > 0) {
-        record.original_id += " ";
-        record.original_id += seq->comment.s;
+      if (records.size() >= headers.size()) {
+        kseq_destroy(seq); gzclose(fp);
+        throw PrepError("INVALID_FASTA", "fasta_validation", "FASTA header count mismatch");
       }
+      record.original_header = headers[records.size()];
+      const auto separator = record.original_header.find_first_of(" \t");
+      const auto description_start = separator == std::string::npos ? std::string::npos
+          : record.original_header.find_first_not_of(" \t", separator);
+      record.description = description_start == std::string::npos ? "" : record.original_header.substr(description_start);
       record.source_file = path;
       record.sequence = seq->seq.s ? seq->seq.s : "";
       if (record.original_id.empty()) {

@@ -84,10 +84,12 @@ void ensure_output_dir(const fs::path& path) {
 
 void check_output_overwrite(const fs::path& output_dir, const OutputConfig& output, bool force) {
   if (force) return;
-  const std::array<fs::path, 3> generated = {
+  const std::array<fs::path, 5> generated = {
       output_dir / output.clean_fasta_name,
       output_dir / "result.json",
       output_dir / "summary.txt",
+      output_dir / "sequence_map.jsonl",
+      output_dir / "sequence_map.tsv",
   };
   for (const auto& path : generated) {
     if (fs::exists(path)) {
